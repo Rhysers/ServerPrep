@@ -51,6 +51,9 @@ function Install-ExchPreReq{
     Restart-Computer
 }
 
+$SchemaPartition = (Get-ADRootDSE.NamingContexts | Where-Object ($_ -like "*Schema*"}
+Test-Path "AD:CN=ms-Exch-Schema-Version-Pt,$SchemaPartition"
+
 function Prepare-Exchange{
     param (
         [string][Parameter(Mandatory=$true, Position=0)][ValidateScript({test-path $_})]$Directory
