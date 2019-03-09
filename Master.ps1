@@ -51,8 +51,7 @@ function Install-ExchPreReq{
     Restart-Computer
 }
 
-$SchemaPartition = (Get-ADRootDSE.NamingContexts | Where-Object ($_ -like "*Schema*"}
-Test-Path "AD:CN=ms-Exch-Schema-Version-Pt,$SchemaPartition"
+#Test-Path "AD:CN=ms-Exch-Schema-Version-Pt,$((Get-ADRootDSE).NamingContexts | Where-Object {$_ -like "*Schema*"})"
 
 function Prepare-Exchange{
     param (
@@ -64,38 +63,34 @@ function Prepare-Exchange{
     $DriveLetter+=':\'
     Push-Location $DriveLetter
     $MyFile = $DriveLetter+"setup.exe"
+    if (!(test-path C:\ExchFiles)){
+        new-item -itemType Directory -path C:\ExchFiles | out-null
+    }
     if (!(test-path C:\ExchFiles\SchemaPrepared.txt)){
-        try{
-            $myProcess = Start-Process $MyFile -ArgumentList "/IAcceptExchangeServerLicenseTerms","/PrepareSchema" -PassThru
-                $myProcess | Wait-Process
-            new-item "C:\ExchFiles\SchemaPrepared.txt" -ItemType File -Force
-        }catch{
-            Write-Warning "Something went terribly wrong preparing the schema, I hope you know what you are doing`n$_"
-            return
+        $myProcess = Start-Process $MyFile -ArgumentList "/IAcceptExchangeServerLicenseTerms","/PrepareSchema" -PassThru
+            $myProcess | Wait-Process
+        if (Test-Path "AD:CN=ms-Exch-Schema-Version-Pt,$((Get-ADRootDSE).NamingContexts | Where-Object {$_ -like "*Schema*"})"){
+            new-item "C:\ExchFiles\SchemaPrepared.txt" -ItemType File -Force | out-null
+        }else{
+            Write-Warning "Something went terribly wrong preparing the schema. The Schema was not extended"
+            Write-host "Common Issues: Not running as Administrator. Not running as a domain user."
+            return -1
         }
     }
+    sleep 1
     if (!(test-path C:\ExchFiles\ADPrepared.txt)){
-        try{
-            $myProcess = Start-Process $MyFile -ArgumentList '/IAcceptExchangeServerLicenseTerms','/PrepareAD','/OrganizationName:"ORGANIZATION"' -PassThru
-                $myProcess | Wait-Process
-            new-item "C:\ExchFiles\ADPrepared.txt" -ItemType File -Force
-        }catch{
-            Write-Warning "Something went terribly wrong preparing AD, I hope you know what you are doing`n$_"
-            return
-        }
+        $myProcess = Start-Process $MyFile -ArgumentList '/IAcceptExchangeServerLicenseTerms','/PrepareAD','/OrganizationName:"ORGANIZATION"' -PassThru
+            $myProcess | Wait-Process
+        new-item "C:\ExchFiles\ADPrepared.txt" -ItemType File -Force | out-null
     }
+    sleep 1
     if (!(Test-Path C:\ExchFiles\AllDomainsPrepared.txt)){
-        try{
-            $myProcess = Start-Process $MyFile -ArgumentList "/IAcceptExchangeServerLicenseTerms","/PrepareAllDomains" -PassThru
-                $myProcess | Wait-Process
-                new-item "C:\ExchFiles\AllDomainsPrepared.txt" -ItemType File -Force
-        }catch{
-            Write-Warning "Something went terribly wrong preparing AD, I hope you know what you are doing`n$_"
-            return
-        }
+        $myProcess = Start-Process $MyFile -ArgumentList "/IAcceptExchangeServerLicenseTerms","/PrepareAllDomains" -PassThru
+            $myProcess | Wait-Process
+        new-item "C:\ExchFiles\AllDomainsPrepared.txt" -ItemType File -Force | out-null
     }
     Pop-Location
-    Write-host "Completed"
+    Write-host "Completed, rebooting in 8 sec." -foregroundcolor Green
     sleep 8
     Restart-Computer
 }
@@ -125,7 +120,11 @@ function Move-Database{
     $i = 1
     foreach ($DB in $DBs){
         Set-MailboxDatabase -identity $DB.Name -Name "MBDB0"+$i
-        Move-DatabasePath -Identity "MBDB0+$i" -force -EdbFilePath $DriveLetter1+"DB1\MBDB0"+$i+".edb" -LogFolderPath $DriveLetter2+"DB"+$i
+        try{
+            Move-DatabasePath -Identity "MBDB0+$i" -force -EdbFilePath $DriveLetter1+"DB1\MBDB0"+$i+".edb" -LogFolderPath $DriveLetter2+"DB"+$i -errorAction Stop
+        }catch{
+            Write-Warning "Unable to move database MBDB0$i - It's probably not on this server and this command needs to be run on the server that it resides on.\nHeres the error: $_"
+        }
     }
     New-SendConnector –Name Internet –AddressSpaces * -Internet –DNSRoutingEnabled $true
     Write-host "Renamed and moved Databases and created Send Connector for Internet"
