@@ -51,8 +51,6 @@ function Install-ExchPreReq{
     Restart-Computer
 }
 
-#Test-Path "AD:CN=ms-Exch-Schema-Version-Pt,$((Get-ADRootDSE).NamingContexts | Where-Object {$_ -like "*Schema*"})"
-
 function Prepare-Exchange{
     param (
         [string][Parameter(Mandatory=$true, Position=0)][ValidateScript({test-path $_})]$Directory
@@ -129,7 +127,10 @@ function Move-Database{
         }
         $i++
     }
-    #New-SendConnector -Name Internet -AddressSpaces * -Internet -DNSRoutingEnabled $true
-    Write-host "Renamed and moved Databases and created Send Connector for Internet"
+    if (!((Get-SendConnector).AddressSpaces.Addrees -eq "*")){
+        New-SendConnector -Name Internet -AddressSpaces * -Internet -DNSRoutingEnabled $true
+        Write-Host "Created Send Connector for *"
+    }
+    Write-host "Renamed and moved Databases on this server"
     Get-MailboxDatabase | Select-Object -Property Name,Server,edbfilepath,logfolderpath | FL
 }
