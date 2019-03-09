@@ -114,18 +114,22 @@ function Install-Exchange{
 function Move-Database{
     param (
         [string]$DriveLetter1,
-        [stting]$DriveLetter2
+        [string]$DriveLetter2
     )
     $DBs = Get-mailboxDatabase
     $i = 1
     foreach ($DB in $DBs){
-        Set-MailboxDatabase -identity $DB.Name -Name "MBDB0"+$i
-        try{
-            Move-DatabasePath -Identity "MBDB0+$i" -force -EdbFilePath $DriveLetter1+"DB1\MBDB0"+$i+".edb" -LogFolderPath $DriveLetter2+"DB"+$i -errorAction Stop
-        }catch{
-            Write-Warning "Unable to move database MBDB0$i - It's probably not on this server and this command needs to be run on the server that it resides on.\nHeres the error: $_"
+        if (!($DB.Name -match "MBDB")){ #Make sure it hasn't already been renamed
+            Set-MailboxDatabase -identity $DB.Name -Name "MBDB0$i"
         }
+        try{
+            Move-DatabasePath -Identity "MBDB0$i" -force -EdbFilePath $DriveLetter1"DB$i\MBDB0"$($i.tostring())".edb" -LogFolderPath $DriveLetter2"DB"$($i.tostring()) -errorAction Stop
+        }catch{
+            Write-Warning "Unable to move database MBDB0$i - It's probably not on this server and this command needs to be run on the server that it resides on.`nHeres the error: $_"
+        }
+        $i++
     }
-    New-SendConnector –Name Internet –AddressSpaces * -Internet –DNSRoutingEnabled $true
+    #New-SendConnector -Name Internet -AddressSpaces * -Internet -DNSRoutingEnabled $true
     Write-host "Renamed and moved Databases and created Send Connector for Internet"
+    Get-MailboxDatabase | Select-Object -Property Name,Server,edbfilepath,logfolderpath | FL
 }
