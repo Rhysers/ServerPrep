@@ -126,6 +126,6 @@ function Move-Database{
             Write-Warning "Unable to move database MBDB0$i - It's probably not on this server and this command needs to be run on the server that it resides on.\nHeres the error: $_"
         }
     }
-    New-SendConnector –Name Internet –AddressSpaces * -Internet –DNSRoutingEnabled $true
+    New-SendConnector -Name Internet -AddressSpaces * -Internet -DNSRoutingEnabled $true
     Write-host "Renamed and moved Databases and created Send Connector for Internet"
 }
