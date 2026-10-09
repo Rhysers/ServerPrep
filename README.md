@@ -1,3 +1,7 @@
+# ARCHIVED
+> Originally written when I was in Data Chief's Course in Twentynine Palms California and had to repeatedly stand up servers in lab environments.
+> Archived because it was designed for Server 2012 (I think) and Exchange 2016.
+
 # ServerPrep
 A collection of tools for deploying MS Server and Exchange 2016
 
